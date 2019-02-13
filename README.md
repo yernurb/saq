@@ -1,2 +1,2 @@
-# saq
+# SAQ
 SAQ system in go
