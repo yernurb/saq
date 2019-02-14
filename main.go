@@ -16,6 +16,7 @@ func main() {
 	deviceID := os.Args[1]
 	saveFile := os.Args[2]
 
+	// Prepare camera module
 	webcam, err := gocv.OpenVideoCapture(deviceID)
 	if err != nil {
 		fmt.Printf("Error opening video capture device: %v\n", deviceID)
@@ -23,6 +24,7 @@ func main() {
 	}
 	defer webcam.Close()
 
+	// Prepare image container matrix
 	img := gocv.NewMat()
 	defer img.Close()
 
@@ -30,7 +32,9 @@ func main() {
 		fmt.Printf("Cannot read device %v\n", deviceID)
 		return
 	}
+	fmt.Println(img.Cols(), img.Rows())
 
+	// Prepare video writer object
 	writer, err := gocv.VideoWriterFile(saveFile, "MJPG", 25, img.Cols(), img.Rows(), true)
 	if err != nil {
 		fmt.Printf("error opening video writer device: %v\n", saveFile)
@@ -38,6 +42,7 @@ func main() {
 	}
 	defer writer.Close()
 
+	// Main loop
 	for i := 0; i < 100; i++ {
 		if ok := webcam.Read(&img); !ok {
 			fmt.Printf("Device closed: %v\n", deviceID)
