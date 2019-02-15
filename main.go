@@ -38,6 +38,7 @@ func main() {
 
 	deviceID := os.Args[1]
 	saveFile := os.Args[2]
+	const maxFrames = 250
 
 	// Prepare camera module
 	webcam, err := gocv.OpenVideoCapture(deviceID)
@@ -47,12 +48,13 @@ func main() {
 	}
 	defer webcam.Close()
 
-	webcam.Set(gocv.VideoCaptureFrameWidth, 1280)
-	webcam.Set(gocv.VideoCaptureFrameHeight, 720)
+	webcam.Set(gocv.VideoCaptureFrameWidth, 640)
+	webcam.Set(gocv.VideoCaptureFrameHeight, 480)
 
-	// Prepare image container matrix
+	// Prepare image container matrix and an array of images
 	img := gocv.NewMat()
 	defer img.Close()
+	var imgArray [maxFrames]gocv.Mat
 
 	if ok := webcam.Read(&img); !ok {
 		fmt.Printf("Cannot read device %v\n", deviceID)
@@ -60,20 +62,16 @@ func main() {
 	}
 	fmt.Println(img.Cols(), img.Rows())
 
-	// Prepare video writer object
-	writer, err := gocv.VideoWriterFile(saveFile, "MP42", 25, img.Cols(), img.Rows(), true)
-	if err != nil {
-		fmt.Printf("error opening video writer device: %v\n", saveFile)
-		return
-	}
-	defer writer.Close()
+	// Check FPS
 
+	start := time.Now()
 	// Main loop
-	for i := 0; i < 250; i++ {
+	for i := 0; i < maxFrames; i++ {
 		if ok := webcam.Read(&img); !ok {
 			fmt.Printf("Device closed: %v\n", deviceID)
 			return
 		}
+
 		if img.Empty() {
 			continue
 		}
@@ -81,7 +79,21 @@ func main() {
 		currentTime := textifyTime()
 		fmt.Println(currentTime)
 		pt := image.Pt(30, 30)
-		gocv.PutText(&img, currentTime, pt, gocv.FontHersheySimplex, 0.6, color.RGBA{255, 0, 0, 0}, 1)
-		writer.Write(img)
+		gocv.PutText(&img, currentTime, pt, gocv.FontHersheySimplex, 0.6, color.RGBA{255, 0, 0, 0}, 2)
+		imgArray[i] = img.Clone()
+	}
+	elapsed := time.Since(start)
+	FPS := float64(maxFrames) / elapsed.Seconds()
+	fmt.Println("Average FPS:", FPS)
+	// Prepare video writer object
+	writer, err := gocv.VideoWriterFile(saveFile, "MP42", FPS, img.Cols(), img.Rows(), true)
+	if err != nil {
+		fmt.Printf("error opening video writer device: %v\n", saveFile)
+		return
+	}
+	defer writer.Close()
+
+	for i := 0; i < maxFrames; i++ {
+		writer.Write(imgArray[i])
 	}
 }
