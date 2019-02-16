@@ -16,25 +16,6 @@ const (
 	frameHeight = 480
 )
 
-// AddZeroTime adds "0" in front of single digit val, for example "7" becomes "07". Assumes 0 <= val <= 60
-func AddZeroTime(val int) string {
-	if val < 10 {
-		return "0" + strconv.Itoa(val)
-	}
-	return strconv.Itoa(val)
-}
-
-// TextifyTime returns current time as: "{Weekday} / {Year} {Month} {Day} / {Hour}:{Minute}:{Second}"
-func TextifyTime() string {
-	year, month, day := time.Now().Date()
-	weekday := time.Now().Weekday()
-	hour, min, sec := time.Now().Clock()
-	hourText := AddZeroTime(hour)
-	minText := AddZeroTime(min)
-	secText := AddZeroTime(sec)
-	return weekday.String() + " / " + strconv.Itoa(year) + " " + month.String() + " " + strconv.Itoa(day) + " / " + hourText + ":" + minText + ":" + secText
-}
-
 // Saq structure with corresponding methods for video capture
 type Saq struct {
 	camera        *gocv.VideoCapture
@@ -47,13 +28,47 @@ type Saq struct {
 	err           error
 }
 
-// SwapBuffer swaps the frames buffer
-func (t *Saq) SwapBuffer() {
+// swapBuffer swaps the frames buffer
+func (t *Saq) swapBuffer() {
 	if t.currentBuffer == &t.frameBuffer1 {
 		t.currentBuffer = &t.frameBuffer2
 	} else {
 		t.currentBuffer = &t.frameBuffer1
 	}
+}
+
+func (t *Saq) writeBuffer(fileName string, FPS float64) {
+	// Prepare video writer object
+	fmt.Println("test1")
+	t.writer, t.err = gocv.VideoWriterFile(fileName, "MP42", FPS, frameWidth, frameHeight, true)
+	if t.err != nil {
+		fmt.Printf("error opening video writer device: %v\n", fileName)
+		return
+	}
+	defer t.writer.Close()
+	for i := 0; i <= maxFrames; i++ {
+		fmt.Println(i)
+		if t.currentBuffer == &t.frameBuffer1 {
+			t.writer.Write(t.frameBuffer1[i])
+		} else {
+			t.writer.Write(t.frameBuffer2[i])
+		}
+	}
+	t.writer.Close()
+}
+
+func wrtieBuffer(fileName string, FPS float64, buffer [maxFrames]gocv.Mat) {
+	writer, err := gocv.VideoWriterFile(fileName, "MP42", FPS, frameWidth, frameHeight, true)
+	if err != nil {
+		fmt.Printf("error opening video writer device: %v\n", fileName)
+		return
+	}
+	defer writer.Close()
+	for i := 0; i <= maxFrames; i++ {
+		fmt.Println(i)
+		writer.Write(buffer[i])
+	}
+	writer.Close()
 }
 
 // StartCapture starts the main infinite loop, capturing and inserting each into buffers
@@ -83,26 +98,40 @@ func (t *Saq) StartCapture(deviceID int) {
 	t.currentIndex = 0
 
 	// Starting the main loop
+	fileIndex := 0
 	start := time.Now()
 	for {
 		t.camera.Read(&t.frame)
 		if t.frame.Empty() {
 			continue
 		}
-		currentTime := TextifyTime()
-		//fmt.Println(currentTime)
+
 		pt := image.Pt(30, 30)
-		gocv.PutText(&t.frame, currentTime, pt, gocv.FontHersheySimplex, 0.6, color.RGBA{255, 0, 0, 0}, 2)
-		t.currentBuffer[t.currentIndex] = t.frame.Clone()
+		text := time.Now().Format("Monday / _2 January 2006 / 15:04:05")
+		//fmt.Println(text)
+		gocv.PutText(&t.frame, text, pt, gocv.FontHersheySimplex, 0.6, color.RGBA{255, 0, 0, 0}, 2)
+		if t.currentBuffer == &t.frameBuffer1 {
+			t.frameBuffer1[t.currentIndex] = t.frame.Clone()
+		} else {
+			t.frameBuffer2[t.currentIndex] = t.frame.Clone()
+		}
 
 		// If current buffer is full swap it and write the collected frames into file
 		t.currentIndex++
 		if t.currentIndex >= maxFrames {
-			t.currentIndex = 0
-			t.SwapBuffer()
 			elapsed := time.Since(start)
 			FPS := float64(maxFrames) / elapsed.Seconds()
 			fmt.Println("FPS:", FPS)
+			fileIndex++
+			fileName := "video-" + strconv.Itoa(fileIndex) + ".avi"
+			if t.currentBuffer == &t.frameBuffer1 {
+				go writeBuffer(fileName, FPS, t.frameBuffer1)
+			} else {
+				go writeBuffer(fileName, FPS, t.frameBuffer2)
+			}
+
+			t.currentIndex = 0
+			t.swapBuffer()
 			start = time.Now()
 		}
 	}

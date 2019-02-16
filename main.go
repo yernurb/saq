@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/yernurb/saq/tracker"
 	"gocv.io/x/gocv"
 )
 
@@ -21,13 +20,18 @@ func main() {
 	saveFile := os.Args[2]
 	const maxFrames = 250
 
-	saq := new(tracker.Saq)
 	// Prepare camera module
-	saq.Init(0)
+	webcam, err := gocv.OpenVideoCapture(deviceID)
+	if err != nil {
+		fmt.Printf("Error opening video capture device: %v\n", deviceID)
+		return
+	}
+	defer webcam.Close()
 
 	// Prepare image container matrix and an array of images
 	img := gocv.NewMat()
 	defer img.Close()
+	var imgArray [maxFrames]gocv.Mat
 
 	if ok := webcam.Read(&img); !ok {
 		fmt.Printf("Cannot read device %v\n", deviceID)
@@ -47,7 +51,7 @@ func main() {
 			continue
 		}
 
-		currentTime := tracker.TextifyTime()
+		currentTime := time.Now().Format("Monday / _2 January 2006 / 15:04:05")
 		fmt.Println(currentTime)
 		pt := image.Pt(30, 30)
 		gocv.PutText(&img, currentTime, pt, gocv.FontHersheySimplex, 0.6, color.RGBA{255, 0, 0, 0}, 2)
