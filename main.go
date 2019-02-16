@@ -21,21 +21,13 @@ func main() {
 	saveFile := os.Args[2]
 	const maxFrames = 250
 
+	saq := new(tracker.Saq)
 	// Prepare camera module
-	webcam, err := gocv.OpenVideoCapture(deviceID)
-	if err != nil {
-		fmt.Printf("Error opening video capture device: %v\n", deviceID)
-		return
-	}
-	defer webcam.Close()
-
-	webcam.Set(gocv.VideoCaptureFrameWidth, 640)
-	webcam.Set(gocv.VideoCaptureFrameHeight, 480)
+	saq.Init(0)
 
 	// Prepare image container matrix and an array of images
 	img := gocv.NewMat()
 	defer img.Close()
-	var imgArray [maxFrames]gocv.Mat
 
 	if ok := webcam.Read(&img); !ok {
 		fmt.Printf("Cannot read device %v\n", deviceID)
