@@ -52,7 +52,7 @@ func main() {
 		}
 
 		currentTime := time.Now().Format("Monday / _2 January 2006 / 15:04:05")
-		fmt.Println(currentTime)
+		// fmt.Println(currentTime)
 		pt := image.Pt(30, 30)
 		gocv.PutText(&img, currentTime, pt, gocv.FontHersheySimplex, 0.6, color.RGBA{255, 0, 0, 0}, 2)
 		imgArray[i] = img.Clone()
